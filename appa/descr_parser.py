@@ -9,14 +9,14 @@ token_regex = '(' + ')|('.join(
 token_matcher = re.compile(token_regex)
 
 def tokenize(file):
-    for line in file:
+    for li, line in enumerate(file):
         offs = 0
         while match := token_matcher.match(line):
             groups = match.groupdict()
             ty, val = next((k, groups[k]) for k in groups if groups[k] is not None)
             span_a, span_b = match.span(ty)
             if ty != TOK_IGNORE:
-                yield Token(ty, val, (span_a + offs, span_b + offs))
+                yield Token(ty, val, Pos(li+1, span_a + offs, li+1, span_b + offs))
 
             line = line[match.end():]
             offs += match.end()
@@ -40,14 +40,14 @@ def parse_rule(peek, seek) -> Rule:
     while (ty := peek()) not in [TOK_SEMI, TOK_EOF]:
         if peek() == TOK_OR:
             seek(TOK_OR)
-            productions.append((AST_PRODUCTION, prod_idents))
+            productions.append(Production(prod_idents))
             prod_idents = []
         else:
             prod_idents.append(seek(TOK_IDENT))
     
     seek(TOK_SEMI)
-    productions.append((AST_PRODUCTION, prod_idents))
-    return (AST_RULE, name, productions)
+    productions.append(Production(prod_idents))
+    return Rule(name, productions)
 
 def parse_rules(peek, seek) -> List[Rule]:
     rules = []

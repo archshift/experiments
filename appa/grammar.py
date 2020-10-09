@@ -26,26 +26,26 @@ def lr1_items(rules: List[ast.Rule], base_item: Lr1Item, seen=set()) -> Lr1Set:
     """
     
     rule_id, prod_id, dot, lookahead = base_item
-    rule_map: Dict[Token, int] = { ast.rule_name(rule): i for i, rule in enumerate(rules) }
+    rule_map: Dict[Token, int] = { make_token(rule.name): i for i, rule in enumerate(rules) }
 
     out = { (rule_id, prod_id, dot, lookahead) }
     if out & seen:
         return set()
 
-    prod = ast.rule_production(rules[rule_id], prod_id)
-    idents = ast.production_idents(prod)
-    if dot == len(idents):
+    prod = rules[rule_id].prods[prod_id]
+    tokens = prod.toks
+    if dot == len(tokens):
         return out
-    if dot > len(idents):
+    if dot > len(tokens):
         return set()
 
-    next_tok = make_token(idents[dot])
-    next_lookahead = make_token(idents[dot+1]) if dot+1 < len(idents) else lookahead
+    next_tok = make_token(tokens[dot])
+    next_lookahead = make_token(tokens[dot+1]) if dot+1 < len(tokens) else lookahead
 
     if next_tok in rule_map:
         next_rule_id = rule_map[next_tok]
         next_rule = rules[next_rule_id]
-        next_prods = ast.rule_productions(next_rule)
+        next_prods = next_rule.prods
         
         for next_prod_id in range(len(next_prods)):
             next_item = (next_rule_id, next_prod_id, 0, next_lookahead)
@@ -63,20 +63,20 @@ def extend_states(rules: List[ast.Rule], item_set: Lr1FrSet, states: BijectMap[i
 
     for rid, pid, dot, lookahead in item_set:
         rule = rules[rid]
-        prod = ast.rule_production(rule, pid)
-        idents = ast.production_idents(prod)
+        prod = rule.prods[pid]
+        tokens = prod.toks
 
-        if dot == len(idents):
+        if dot == len(tokens):
             assert lookahead not in actions, "Reduce/Reduce conflict!"
             actions[lookahead] = Reduce((rid, pid))
             continue
 
-        next_ident = make_token(idents[dot])
+        next_token = make_token(tokens[dot])
         next_item = (rid, pid, dot + 1, lookahead)
-        if next_ident not in new_states:
-            new_states[next_ident] = set()
+        if next_token not in new_states:
+            new_states[next_token] = set()
 
-        new_states[next_ident] |= lr1_items(rules, next_item, new_states[next_ident])
+        new_states[next_token] |= lr1_items(rules, next_item, new_states[next_token])
 
     for tok in new_states:
         state = frozenset(new_states[tok])
@@ -89,7 +89,7 @@ def extend_states(rules: List[ast.Rule], item_set: Lr1FrSet, states: BijectMap[i
     return actions
 
 def make_graph(rules: List[ast.Rule], rule_id: int):
-    prods = ast.rule_productions(rules[rule_id])
+    prods = rules[rule_id].prods
 
     states: BijectMap[int, Lr1FrSet] = BijectMap()
 
@@ -123,11 +123,11 @@ def make_graph(rules: List[ast.Rule], rule_id: int):
 def pretty_lr1_item(rules: List[ast.Rule], item: Lr1Item):
     rid, pid, dot, lookahead = item
     rule = rules[rid]
-    prod = ast.rule_production(rule, pid)
-    idents = ast.production_idents(prod)
-    str_idents = ' '.join( str(make_token(p)) for p in idents[:dot] ) \
-         + " 🠷 " + ' '.join( str(make_token(p)) for p in idents[dot:] ) 
-    return (ast.rule_name(rule), str_idents, lookahead)
+    prod = rule.prods[pid]
+    tokens = prod.toks
+    str_tokens = ' '.join( str(make_token(p)) for p in tokens[:dot] ) \
+         + " 🠷 " + ' '.join( str(make_token(p)) for p in tokens[dot:] ) 
+    return (rule.name.val, str_tokens, lookahead)
 
 def pretty_lr1_set(rules: List[ast.Rule], lr1_set: Union[Lr1Set, Lr1FrSet]):
     out = []
@@ -135,14 +135,8 @@ def pretty_lr1_set(rules: List[ast.Rule], lr1_set: Union[Lr1Set, Lr1FrSet]):
         out.append(pretty_lr1_item(rules, item))
     return out
 
-def pretty_production(rules: List[ast.Rule], rid: int, pid: int):
-    rule = rules[rid]
-    prod = ast.rule_production(rule, pid)
-    idents = ast.production_idents(prod)
-    return (ast.rule_name(rule), ' '.join( str(make_token(p)) for p in idents))
-
 def pretty_action(rules: List[ast.Rule], action: Action):
     if isinstance(action, Shift):
         return ("shift", action)
     if isinstance(action, Reduce):
-        return ("reduce", pretty_production(rules, *action))
+        return ("reduce", rules[action[0]].prods[action[1]])
