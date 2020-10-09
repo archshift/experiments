@@ -11,10 +11,11 @@ Meta = Tuple[Type, Token, List[Token]]
 
 class Production:
     toks: List[Token]
-    pos: Pos
+    pos: Pos = None
     def __init__(self, toks: List[Token]):
         self.toks = toks
-        self.pos = Pos.bounds(tok.pos for tok in toks)
+        if toks:
+            self.pos = Pos.bounds(tok.pos for tok in toks)
     def __str__(self):
         return ' '.join( p.val for p in self.toks )
     __repr__ = __str__
@@ -28,11 +29,11 @@ class Rule:
         self.prods = prods
         self.pos = Pos.bounds(name.pos, (prod.pos for prod in prods))
     def __str__(self):
-        left = f'{self.name} ::= '
+        left = f'{self.name.val} ::= '
         left_size = len(left)
         padding = ' ' * (left_size - 2)
         str_prods = map(str, self.prods)
-        return left + f'\n{padding}| '.join(str_prods) + '; ' + f' @{self.pos}'
+        return left + f'\n{padding}| '.join(str_prods) + f';  @{self.pos}'
     __repr__ = __str__
 
 Ast = Tuple[Type, List[Meta], List[Rule]]

@@ -67,10 +67,16 @@ def extend_states(rules: List[ast.Rule], item_set: Lr1FrSet, states: BijectMap[i
         tokens = prod.toks
 
         if dot == len(tokens):
-            assert lookahead not in actions, "Reduce/Reduce conflict!"
-            actions[lookahead] = Reduce((rid, pid))
+            # At the end of a rule, so we can reduce now
+            new_action = Reduce((rid, pid))
+            if lookahead in actions:
+                old_action = actions[lookahead]
+                print(f"Reduce/Reduce conflict on `{lookahead}` in state {states.get_b(item_set)}! " +
+                      f"between action {pretty_action(rules, old_action)} and {pretty_action(rules, new_action)}")
+            actions[lookahead] = new_action
             continue
 
+        # If we didn't reduce, we're shifting to the next dot positions in the set
         next_token = make_token(tokens[dot])
         next_item = (rid, pid, dot + 1, lookahead)
         if next_token not in new_states:
@@ -79,13 +85,18 @@ def extend_states(rules: List[ast.Rule], item_set: Lr1FrSet, states: BijectMap[i
         new_states[next_token] |= lr1_items(rules, next_item, new_states[next_token])
 
     for tok in new_states:
+        # Obtain indices of shift states in the state map
         state = frozenset(new_states[tok])
         if state not in states:
             states.insert_ab(len(states), state)
         state_idx = states.get_b(state)
         
-        assert tok not in actions, "Shift/Reduce conflict!"
-        actions[tok] = Shift(state_idx)
+        new_action = Shift(state_idx)
+        if tok in actions:
+            old_action = actions[tok]
+            print(f"Shift/Reduce conflict on `{tok}` in state {states.get_b(item_set)}! " +
+                  f"between action {pretty_action(rules, old_action)} and {pretty_action(rules, new_action)}")
+        actions[tok] = new_action
     return actions
 
 def make_graph(rules: List[ast.Rule], rule_id: int):

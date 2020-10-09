@@ -37,16 +37,23 @@ def parse_rule(peek, seek) -> Rule:
     productions: List[Production] = []
     prod_idents: List[Token] = []
     
-    while (ty := peek()) not in [TOK_SEMI, TOK_EOF]:
+    while peek() not in [TOK_SEMI, TOK_EOF]:
         if peek() == TOK_OR:
-            seek(TOK_OR)
-            productions.append(Production(prod_idents))
+            or_tok = seek(TOK_OR)
+            prod = Production(prod_idents)
+            if not prod.pos:
+                prod.pos = or_tok.pos
+            productions.append(prod)
             prod_idents = []
         else:
             prod_idents.append(seek(TOK_IDENT))
     
-    seek(TOK_SEMI)
-    productions.append(Production(prod_idents))
+    semi_tok = seek(TOK_SEMI)
+    prod = Production(prod_idents)
+    productions.append(prod)
+    if not prod.pos:
+        prod.pos = semi_tok.pos
+
     return Rule(name, productions)
 
 def parse_rules(peek, seek) -> List[Rule]:
