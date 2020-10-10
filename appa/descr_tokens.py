@@ -7,20 +7,30 @@ TOK_COLON = "colon"
 TOK_IDENT = "ident"
 TOK_SEMI = "semicolon"
 TOK_OR = "or"
-TOK_IGNORE = "ignore"
 TOK_EOF = "eof"
 TOK_NEWLINE = "newline"
 
-tokens = {
-    TOK_META:           r"%\w+",
-    TOK_PP:             r"%%",
-    TOK_SEMI:           r";",
-    TOK_OR:             r"\|",
-    TOK_COLON:          r":",
-    TOK_IDENT:          r"[a-zA-Z]\w*",
-    TOK_IGNORE:         r"[ \t]",
-    TOK_NEWLINE:        r"\n",
+STATE_META = "meta"
+STATE_RULES = "rules"
+init_state = STATE_META
+
+meta_tokens = [
+    {"regexp": r"%\w+",         "tok": TOK_META},
+    {"regexp": r"%%\n",         "tok": TOK_PP,      "next": STATE_RULES},
+    {"regexp": r"[ \t]"},
+]
+rules_tokens = [
+    {"regexp": r";",            "tok": TOK_SEMI},
+    {"regexp": r"\|",           "tok": TOK_OR},
+    {"regexp": r":",            "tok": TOK_COLON},
+    {"regexp": r"[a-zA-Z]\w*",  "tok": TOK_IDENT},
+    {"regexp": r"[ \t\n]"},
+]
+token_states = {
+    STATE_META:  meta_tokens,
+    STATE_RULES: rules_tokens,
 }
+
 
 class Pos:
     l1: int
