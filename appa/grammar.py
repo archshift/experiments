@@ -1,7 +1,7 @@
 from typing import List, Set, Tuple, Dict, FrozenSet, Union
 
 import descr_ast as ast
-import descr_tokens as tok
+import descr_lexer as lex
 from tools import BijectMap
 
 class EOF:
@@ -14,7 +14,7 @@ Lr1Set = Set[Lr1Item]
 Lr1FrSet = FrozenSet[Lr1Item]
 
 def make_token(ident: ast.Token) -> Token:
-    if ident is tok.EOF:
+    if ident is lex.EOF:
         return EOF()
     return ident.val
     
@@ -60,6 +60,7 @@ Action = Union[Shift, Reduce]
 def extend_states(rules: List[ast.Rule], item_set: Lr1FrSet, states: BijectMap[int, Lr1FrSet]) -> Dict[Token, Action]:
     new_states: Dict[Token, Lr1Set] = {}
     actions: Dict[Token, Action] = {}
+    new_action: Action
 
     for rid, pid, dot, lookahead in item_set:
         rule = rules[rid]

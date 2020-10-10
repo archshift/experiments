@@ -1,54 +1,8 @@
-import re
-
 from descr_ast import *
 from descr_tokens import *
+from descr_lexer import *
 
-def make_token_regex(token_descs):
-    def single_regex(desc):
-        if "tok" in desc:
-            return f"?P<{desc['tok']}>{desc['regexp']}"
-        else:
-            return desc['regexp']
-
-    regexps = map(single_regex, token_descs)
-    return '(' + ')|('.join(regexps) + ')'
-
-token_state_matchers = {
-    state: re.compile(make_token_regex(descs))
-    for state, descs in token_states.items()
-}
-
-def match_transitions(token_descs):
-    return { desc["tok"]: desc["next"] for desc in token_descs if "next" in desc }
-
-state_transitions = {
-    state: match_transitions(descs)
-    for state, descs in token_states.items()
-}
-
-def tokenize(file):
-    state = init_state
-    matcher = token_state_matchers[state]
-
-    for li, line in enumerate(file):
-        offs = 0
-        while match := matcher.match(line):
-            groups = match.groupdict()
-            try:
-                ty, val = next((k, groups[k]) for k in groups if groups[k] is not None)
-                span_a, span_b = match.span(ty)
-                yield Token(ty, val, Pos(li+1, span_a + offs, li+1, span_b + offs))
-            except StopIteration:
-                # no emitted token
-                pass
-
-            line = line[match.end():]
-            offs += match.end()
-
-            if ty in state_transitions[state]:
-                # change of state required
-                state = state_transitions[state][ty]
-                matcher = token_state_matchers[state]
+from typing import Dict, Any
 
 def parse_meta(peek, seek) -> Meta:
     operator = seek(TOK_META)
@@ -59,29 +13,36 @@ def parse_meta(peek, seek) -> Meta:
     seek(TOK_NEWLINE)
     return (AST_META, operator, operands)
 
+def parse_production(peek, seek) -> Production:
+    idents: List[Token] = []
+    rule_code: Optional[Token] = None
+    while peek() == TOK_IDENT:
+        idents.append(seek(TOK_IDENT))
+    
+    if peek() == TOK_RULE_CODE:
+        rule_code = seek(TOK_RULE_CODE)
+    return Production(idents, rule_code)
+
 def parse_rule(peek, seek) -> Rule:
     name = seek(TOK_IDENT)
     seek(TOK_COLON)
 
     productions: List[Production] = []
-    prod_idents: List[Token] = []
-    
-    while peek() not in [TOK_SEMI, TOK_EOF]:
-        if peek() == TOK_OR:
-            or_tok = seek(TOK_OR)
-            prod = Production(prod_idents)
-            if not prod.pos:
-                prod.pos = or_tok.pos
-            productions.append(prod)
-            prod_idents = []
+    term: Token = None
+
+    while True:
+        prod = parse_production(peek, seek)
+        if peek() == TOK_SEMI:
+            term = seek(TOK_SEMI)
         else:
-            prod_idents.append(seek(TOK_IDENT))
-    
-    semi_tok = seek(TOK_SEMI)
-    prod = Production(prod_idents)
-    productions.append(prod)
-    if not prod.pos:
-        prod.pos = semi_tok.pos
+            term = seek(TOK_OR)
+
+        if not prod.pos:
+            prod.pos = term.pos
+        productions.append(prod)
+
+        if term.ty == TOK_SEMI:
+            break
 
     return Rule(name, productions)
 
@@ -120,7 +81,7 @@ def parse(file):
         return lookahead[i].ty
     def seek(token):
         if (ty := peek()) != token:
-            raise RuntimeError(f"Parse error. Expected token of type `{token}`, but got `{peek()}`!")
+            raise RuntimeError(f"Parse error. Expected token of type `{token}`, but got `{ty}`!")
         out = lookahead[0]
         del lookahead[0]
         return out

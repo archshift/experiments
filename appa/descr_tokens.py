@@ -1,36 +1,5 @@
-from typing import Tuple, Union, Iterator
+from typing import Union, Iterator
 import tools
-
-TOK_META = "metarule"
-TOK_PP = "percentpercent"
-TOK_COLON = "colon"
-TOK_IDENT = "ident"
-TOK_SEMI = "semicolon"
-TOK_OR = "or"
-TOK_EOF = "eof"
-TOK_NEWLINE = "newline"
-
-STATE_META = "meta"
-STATE_RULES = "rules"
-init_state = STATE_META
-
-meta_tokens = [
-    {"regexp": r"%\w+",         "tok": TOK_META},
-    {"regexp": r"%%\n",         "tok": TOK_PP,      "next": STATE_RULES},
-    {"regexp": r"[ \t]"},
-]
-rules_tokens = [
-    {"regexp": r";",            "tok": TOK_SEMI},
-    {"regexp": r"\|",           "tok": TOK_OR},
-    {"regexp": r":",            "tok": TOK_COLON},
-    {"regexp": r"[a-zA-Z]\w*",  "tok": TOK_IDENT},
-    {"regexp": r"[ \t\n]"},
-]
-token_states = {
-    STATE_META:  meta_tokens,
-    STATE_RULES: rules_tokens,
-}
-
 
 class Pos:
     l1: int
@@ -72,5 +41,3 @@ class Token:
     def __str__(self):
         return f"({self.ty}) `{self.val}` @{self.pos}"
     __repr__ = __str__
-
-EOF = Token(TOK_EOF, "⊢", Pos(-1, -1, -1, -1))
