@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from descr_tokens import Token, Pos
 
 AST_META = "meta"
@@ -7,13 +7,37 @@ AST_PRODUCTION = "production"
 AST_RULE = "rule"
 
 Type = str
-Meta = Tuple[Type, Token, List[Token]]
+
+class MetaToken:
+    tys: List[Optional[Token]]
+    names: List[Token]
+    def __init__(self, tys: List[Optional[Token]], names: List[Token]):
+        self.tys = tys
+        self.names = names
+    def __str__(self):
+        token_decls = ( f'{name.val}: {ty.val if ty else None}'
+                        for name, ty in zip(self.names, self.tys) )
+        return f'%token {", ".join(token_decls)}'
+    __repr__ = __str__
+
+class MetaStart:
+    rule: Token
+    def __init__(self, rule: Token):
+        self.rule = rule
+    def __str__(self):
+        return f'%start {self.rule.val}'
+    __repr__ = __str__
+
+Meta = Union[MetaToken, MetaStart]
 
 class Production:
     toks: List[Token]
-    pos: Pos = None
-    def __init__(self, toks: List[Token], action: Optional[Token]):
+    action: Optional[Token]
+    pos: Pos
+    def __init__(self, toks: List[Token], action: Optional[Token], start_pos: Pos):
         self.toks = toks
+        self.action = action
+        self.pos = start_pos
         if toks:
             self.pos = Pos.bounds(tok.pos for tok in toks)
         if action:

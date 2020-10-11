@@ -5,11 +5,23 @@ from descr_parser import parse
 import descr_ast as ast
 import grammar
 
+from typing import Set, Iterable, List
+
+def make_flags(args: List[str], all_flags: Iterable[str]):
+    found_args = set()
+    for flag in args:
+        assert flag.startswith('--')
+        found_args.add(flag[2:])
+    return { f: f in found_args for f in all_flags }
+
 def produce_ast(args):
     filename = args[0]
-    assert not args[1:]
+    flags = make_flags(args[1:], {
+        "debug_lexer"
+    })
+
     with open(filename) as file:
-        ast = parse(file)
+        ast = parse(file, **flags)
         pprint.pprint(ast)
 
 def produce_graph(args):

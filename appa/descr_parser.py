@@ -4,16 +4,37 @@ from descr_lexer import *
 
 from typing import Dict, Any
 
-def parse_meta(peek, seek) -> Meta:
-    operator = seek(TOK_META)
-    operands = []
+def parse_meta_token(peek, seek) -> MetaToken:
+    tys: List[Optional[Token]] = []
+    names: List[Token] = []
+
     while peek() != TOK_NEWLINE:
-        operands.append(seek(TOK_IDENT))
+        ty: Optional[Token] = None
+        if peek() == TOK_LANGLE:
+            seek(TOK_LANGLE)
+            ty = seek(TOK_IDENT)
+            seek(TOK_RANGLE)
+        tys.append(ty)
+        names.append(seek(TOK_IDENT))
 
     seek(TOK_NEWLINE)
-    return (AST_META, operator, operands)
+    return MetaToken(tys, names)
 
-def parse_production(peek, seek) -> Production:
+def parse_meta_start(peek, seek) -> MetaStart:
+    rule = seek(TOK_IDENT)
+    seek(TOK_NEWLINE)
+    return MetaStart(rule)
+
+def parse_meta(peek, seek) -> Meta:
+    meta = seek(TOK_META)
+    if meta.val == '%token':
+        return parse_meta_token(peek, seek)
+    elif meta.val == '%start':
+        return parse_meta_start(peek, seek)
+    else:
+        raise RuntimeError(f"Unknown meta token `{meta}`!")
+
+def parse_production(peek, seek, start_pos: Pos) -> Production:
     idents: List[Token] = []
     rule_code: Optional[Token] = None
     while peek() == TOK_IDENT:
@@ -21,29 +42,26 @@ def parse_production(peek, seek) -> Production:
     
     if peek() == TOK_RULE_CODE:
         rule_code = seek(TOK_RULE_CODE)
-    return Production(idents, rule_code)
+    return Production(idents, rule_code, start_pos)
 
 def parse_rule(peek, seek) -> Rule:
     name = seek(TOK_IDENT)
-    seek(TOK_COLON)
+    term = seek(TOK_COLON)
 
     productions: List[Production] = []
-    term: Token = None
 
     while True:
-        prod = parse_production(peek, seek)
-        if peek() == TOK_SEMI:
-            term = seek(TOK_SEMI)
-        else:
-            term = seek(TOK_OR)
+        start_pos = Pos(term.pos.l1, term.pos.c1 + 1, term.pos.l1, term.pos.c1 + 1)
+        prod = parse_production(peek, seek, start_pos)
 
-        if not prod.pos:
-            prod.pos = term.pos
         productions.append(prod)
 
-        if term.ty == TOK_SEMI:
+        if peek() == TOK_OR:
+            term = seek(TOK_OR)
+        else:
             break
 
+    seek(TOK_SEMI)
     return Rule(name, productions)
 
 def parse_rules(peek, seek) -> List[Rule]:
@@ -59,7 +77,8 @@ def parse_descr(peek, seek):
     while peek() != TOK_PP:
         if peek() == TOK_NEWLINE:
             seek(TOK_NEWLINE)
-        metas.append(parse_meta(peek, seek))
+        else:
+            metas.append(parse_meta(peek, seek))
 
     seek(TOK_PP)
 
@@ -67,8 +86,8 @@ def parse_descr(peek, seek):
     
     return (AST_DESCR, metas, rules)
 
-def parse(file):
-    token_gen = tokenize(file)
+def parse(file, debug_lexer=False):
+    token_gen = tokenize(file, debug_lexer=debug_lexer)
     lookahead = []
     def fill_lookahead():
         while len(lookahead) < 2:
