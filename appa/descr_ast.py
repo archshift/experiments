@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, Dict
 from descr_tokens import Token, Pos
 
 AST_META = "meta"
@@ -17,7 +17,7 @@ class MetaToken:
     def __str__(self):
         token_decls = ( f'{name.val}: {ty.val if ty else None}'
                         for name, ty in zip(self.names, self.tys) )
-        return f'%token {", ".join(token_decls)}'
+        return f'(%token {", ".join(token_decls)})'
     __repr__ = __str__
 
 class MetaStart:
@@ -25,10 +25,21 @@ class MetaStart:
     def __init__(self, rule: Token):
         self.rule = rule
     def __str__(self):
-        return f'%start {self.rule.val}'
+        return f'(%start {self.rule.val})'
     __repr__ = __str__
 
-Meta = Union[MetaToken, MetaStart]
+class MetaUnion:
+    types_vars: List[Tuple[Token, Token]]
+    def __init__(self, typed_vars: List[Tuple[Token, Token]]):
+        self.types_vars = typed_vars
+    def __str__(self):
+        var_decls = ( f'({name.val}: {ty.val})'
+                        for ty, name in self.types_vars )
+        return f'(%union {" ".join(var_decls)})'
+    __repr__ = __str__
+        
+
+Meta = Union[MetaToken, MetaStart, MetaUnion]
 
 class Production:
     toks: List[Token]

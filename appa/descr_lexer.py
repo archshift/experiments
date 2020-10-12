@@ -13,6 +13,7 @@ TOK_IDENT = "ident"
 TOK_SEMI = "semicolon"
 TOK_OR = "or"
 TOK_LBRACKET = "lbracket"
+TOK_RBRACKET = "rbracket"
 TOK_LANGLE = "langle"
 TOK_RANGLE = "rangle"
 TOK_RULE_CODE = "rule_code"
@@ -73,6 +74,9 @@ meta_tokens: TokenState = [
     { "regexp": r"\n",          "tok": TOK_NEWLINE},
     { "regexp": r"<",           "tok": TOK_LANGLE },
     { "regexp": r">",           "tok": TOK_RANGLE },
+    { "regexp": r"\{",          "tok": TOK_LBRACKET },
+    { "regexp": r"\}",          "tok": TOK_RBRACKET },
+    { "regexp": r";",           "tok": TOK_SEMI },
     { "regexp": r"%%\n",        "tok": TOK_PP,          "do": lambda ctx: ctx.goto(STATE_RULES) or ctx.match },
     { "regexp": r"/\*",         "tok": TOK_ST_COMMENT,  "do": lambda ctx: ctx.push_state(STATE_COMMENT) },
     { "regexp": r"[ \t]+",      "tok": TOK_WHITESPACE,  "do": lambda _: None },
@@ -156,8 +160,8 @@ def tokenize(file, debug_lexer=False) -> Iterator[Token]:
         if debug_lexer: lex_print(f"Goto state {which}")
 
     ctx = TokenCtx()
-    ctx.goto = goto
-    ctx.state = lambda: state
+    ctx.goto = goto # type: ignore
+    ctx.state = lambda: state # type: ignore
 
     for li, line in enumerate(file):
         offs = 0

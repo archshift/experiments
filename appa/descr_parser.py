@@ -7,14 +7,14 @@ from typing import Dict, Any
 def parse_meta_token(peek, seek) -> MetaToken:
     tys: List[Optional[Token]] = []
     names: List[Token] = []
+    last_ty: Optional[Token] = None
 
     while peek() != TOK_NEWLINE:
-        ty: Optional[Token] = None
         if peek() == TOK_LANGLE:
             seek(TOK_LANGLE)
-            ty = seek(TOK_IDENT)
+            last_ty = seek(TOK_IDENT)
             seek(TOK_RANGLE)
-        tys.append(ty)
+        tys.append(last_ty)
         names.append(seek(TOK_IDENT))
 
     seek(TOK_NEWLINE)
@@ -25,12 +25,26 @@ def parse_meta_start(peek, seek) -> MetaStart:
     seek(TOK_NEWLINE)
     return MetaStart(rule)
 
+def parse_meta_union(peek, seek) -> MetaUnion:
+    decls: List[Tuple[Token, Token]] = []
+    seek(TOK_LBRACKET)
+    seek(TOK_NEWLINE)
+    while peek() != TOK_RBRACKET:
+        decls.append((seek(TOK_IDENT), seek(TOK_IDENT)))
+        seek(TOK_SEMI)
+        seek(TOK_NEWLINE)
+    seek(TOK_RBRACKET)
+    seek(TOK_NEWLINE)
+    return MetaUnion(decls)
+
 def parse_meta(peek, seek) -> Meta:
     meta = seek(TOK_META)
-    if meta.val == '%token':
+    if meta.val in { '%token', '%type', '%left', '%right', '%nonassoc', '%precedence' }:
         return parse_meta_token(peek, seek)
     elif meta.val == '%start':
         return parse_meta_start(peek, seek)
+    elif meta.val == '%union':
+        return parse_meta_union(peek, seek)
     else:
         raise RuntimeError(f"Unknown meta token `{meta}`!")
 
