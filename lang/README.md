@@ -4,11 +4,16 @@
 
 ```
 f(x) :=
-    a + b;
+    a + b
 
 f(x) :=
     if a then g(x)
-    else h(x)
+    else if a is (
+        1 then h(x),
+        2 then b(x),
+        3 then a(x),
+        else unreachable
+    )
 
 map(what, iter) :=
     what(*iter) -> map(what, iter->...)
@@ -40,6 +45,7 @@ Expressions:
 - `var := expr`: Define variable, yields the variable
 - Operator expressions
 - `if b then expr1 else expr2`: If statement yielding one of two expressions
+- `if b is ( 1 then a, 2 then b, else c )`: Case statement
 - `name(args)`: Pure function call
 - `name!(args)`: Unpure function call
 - `name(arg1, ...)`: Partial function call
